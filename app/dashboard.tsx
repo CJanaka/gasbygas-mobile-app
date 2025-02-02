@@ -29,7 +29,8 @@ export default function Dashboard({ navigation }: Props) {
                   width: '48%' 
                 }} onPress={() => navigation.navigate('GasOrder')}
               >
-                <ShoppingCart style={{ alignSelf: 'center', marginBottom: 8 }} size={48} />
+                {/* <ShoppingCart style={{ alignSelf: 'center', marginBottom: 8 }} size={48} /> */}
+                <ShoppingCart size={48} color= '#6b7280' style={{ alignSelf: 'center', marginBottom: 8 }}/>
                 <Text style={{ textAlign: 'center' }}>Place New Order</Text>
               </TouchableOpacity>
               <TouchableOpacity 
@@ -40,7 +41,8 @@ export default function Dashboard({ navigation }: Props) {
                   width: '48%' 
                 }} onPress={() => navigation.navigate('MyOrders')}
               >
-                <List style={{ alignSelf: 'center', marginBottom: 8 }} size={48} />
+                {/* <List style={{ alignSelf: 'center', marginBottom: 8 }} size={48} /> */}
+                <List size={48} color= '#6b7280' style={{ alignSelf: 'center', marginBottom: 8 }} />
                 <Text style={{ textAlign: 'center' }}>View Orders</Text>
               </TouchableOpacity>
             </View>

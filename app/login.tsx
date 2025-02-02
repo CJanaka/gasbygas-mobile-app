@@ -18,13 +18,13 @@ export default function Login({ navigation }: Props) {
 
   const handleLogin = (): void => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please enter both email and password');
+      Alert.alert('Error', 'Please enter both username and password');
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      Alert.alert('Error', 'Please enter a valid email address');
+      Alert.alert('Error', 'Please enter a valid username address');
       return;
     }
 
@@ -50,11 +50,11 @@ export default function Login({ navigation }: Props) {
         <Text style={styles.title}>Login</Text>
         <TextInput
           style={styles.input}
-          placeholder="Email"
+          placeholder="Username"
           placeholderTextColor="#a9a9a9"
           value={email}
           onChangeText={setEmail}
-          keyboardType="email-address"
+          keyboardType="default"
           autoCapitalize="none"
         />
         <TextInput

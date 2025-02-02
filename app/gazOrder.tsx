@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, TextInput, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 
 interface GasType {
   id: number;
@@ -8,9 +8,9 @@ interface GasType {
 }
 
 const GAS_TYPES: GasType[] = [
-  { id: 1, name: 'Regular Gas', price: 3.50 },
-  { id: 2, name: 'Premium Gas', price: 4.20 },
-  { id: 3, name: 'Diesel', price: 3.80 }
+  { id: 1, name: '2.5KG Gas', price: 1500.00 },
+  { id: 2, name: '5KG Gas', price: 2300.00 },
+  { id: 3, name: '12KG Gas', price: 3500.00 }
 ];
 
 const GasOrder = () => {
@@ -80,7 +80,7 @@ const GasOrder = () => {
         <View key={gasType.id} style={styles.gasTypeContainer}>
           <View style={styles.gasTypeInfo}>
             <Text style={styles.gasTypeName}>{gasType.name}</Text>
-            <Text style={styles.gasTypePrice}>Price: ${gasType.price.toFixed(2)} per unit</Text>
+            <Text style={styles.gasTypePrice}>Price: LKR {gasType.price.toFixed(2)} per unit</Text>
           </View>
           
           <View style={styles.quantityControl}>
@@ -105,9 +105,21 @@ const GasOrder = () => {
         </View>
       ))}
 
+      <TextInput
+        style={styles.input}
+        placeholder="Contact (optional)"
+        // value={formData.name}
+        // onChangeText={(text) => setFormData({ ...formData, name: text })}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Email (optional)"
+        // value={formData.name}
+        // onChangeText={(text) => setFormData({ ...formData, name: text })}
+      />
       <View style={styles.totalContainer}>
         <Text style={styles.totalText}>
-          Total Amount: ${calculateTotal().toFixed(2)}
+          Total Amount: LKR {calculateTotal().toFixed(2)}
         </Text>
       </View>
 
@@ -119,6 +131,7 @@ const GasOrder = () => {
 };
 
 const styles = StyleSheet.create({
+  input: { borderWidth: 1, borderColor: '#ccc', padding: 10, borderRadius: 5, marginVertical: 10 },
   container: {
     flex: 1,
     padding: 20,

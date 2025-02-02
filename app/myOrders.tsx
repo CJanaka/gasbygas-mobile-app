@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, Modal, StyleSheet } from 'react-native';
+import { ChevronRight } from 'lucide-react-native';
 
 interface OrderItem {
   gasTypeId: number;
@@ -10,7 +11,7 @@ interface Order {
   id: number;
   orderItems: OrderItem[];
   totalAmount: number;
-  createdAt: string;
+  createdAt: String;
 }
 
 interface GasType {
@@ -20,15 +21,15 @@ interface GasType {
 }
 
 const GAS_TYPES: GasType[] = [
-  { id: 1, name: 'Regular Gas', price: 3.50 },
-  { id: 2, name: 'Premium Gas', price: 4.20 },
-  { id: 3, name: 'Diesel', price: 3.80 }
+  { id: 1, name: '2.5KG Gas', price: 1500.00 },
+  { id: 2, name: '5KG Gas', price: 2300.00 },
+  { id: 3, name: '12KG Gas', price: 3500.00 }
 ];
 
 const ORDER: Order[] = [
-  { id: 1, orderItems: [{gasTypeId: 1, quantity: 5,}], totalAmount: 3.50 , createdAt: '1:27:2025'},
-  { id: 1, orderItems: [{gasTypeId: 2, quantity: 5,}], totalAmount: 3.50 , createdAt: '1/27/2025'},
-  { id: 1, orderItems: [{gasTypeId: 3, quantity: 5,}], totalAmount: 3.50 , createdAt: '1/27/2025'},
+  { id: 1, orderItems: [{gasTypeId: 1, quantity: 5,}], totalAmount: 15.00 , createdAt: '1:27:2025'},
+  { id: 5, orderItems: [{gasTypeId: 2, quantity: 5,}], totalAmount: 20.00 , createdAt: '1/27/2025'},
+  { id: 7, orderItems: [{gasTypeId: 3, quantity: 5,}], totalAmount: 25.00 , createdAt: '1/27/2025'},
 ];
 
 const MyOrders = () => {
@@ -60,14 +61,47 @@ const MyOrders = () => {
 
   const renderOrderItem = ({ item }: { item: Order }) => {
     return (
-      <TouchableOpacity 
-        style={styles.orderContainer} 
-        onPress={() => openOrderDetails(item)}
-      >
-        <Text style={styles.orderIdText}>Order #{item.id}</Text>
-        <Text>Total Amount: ${item.totalAmount.toFixed(2)}</Text>
-        <Text>Date: {new Date(item.createdAt).toLocaleDateString()}</Text>
-      </TouchableOpacity>
+      <TouchableOpacity
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 16,
+        backgroundColor: 'white',
+        borderRadius: 8,
+        marginBottom: 10,
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.2,
+        shadowRadius: 2,
+      }}
+      onPress={() => openOrderDetails(item)}
+    >
+      <View style={{ flex: 1 }}>
+        <Text style={{ 
+          fontSize: 16, 
+          fontWeight: '600',
+          marginBottom: 4 
+        }}>
+          Order - {item.id}
+        </Text>
+        <Text style={{ 
+          color: '#374151',
+          marginBottom: 2 
+        }}>
+          Total Amount: LKR {item.totalAmount.toFixed(2)}
+        </Text>
+        <Text style={{ color: '#6b7280' }}>
+          Date: {item.createdAt}
+        </Text>
+      </View>
+      <ChevronRight 
+        size={24} 
+        color="#9ca3af"
+      />
+    </TouchableOpacity>
     );
   };
 
@@ -84,8 +118,8 @@ const MyOrders = () => {
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Order Details</Text>
-            <Text>Order ID: #{selectedOrder.id}</Text>
-            <Text>Date: {new Date(selectedOrder.createdAt).toLocaleString()}</Text>
+            <Text>Order ID: - {selectedOrder.id}</Text>
+            <Text>Date: {selectedOrder.createdAt}</Text>
             
             <Text style={styles.detailsSubtitle}>Order Items:</Text>
             {selectedOrder.orderItems.map((item) => {
@@ -94,13 +128,13 @@ const MyOrders = () => {
                 <View key={item.gasTypeId} style={styles.orderItemDetails}>
                   <Text>{gasType?.name || 'Unknown Gas Type'}</Text>
                   <Text>Quantity: {item.quantity}</Text>
-                  <Text>Price: ${gasType ? (gasType.price * item.quantity).toFixed(2) : '0.00'}</Text>
+                  <Text>Price: LKR {gasType ? (gasType.price * item.quantity).toFixed(2) : '0.00'}</Text>
                 </View>
               );
             })}
 
             <Text style={styles.totalAmountText}>
-              Total Amount: ${selectedOrder.totalAmount.toFixed(2)}
+              Total Amount: LKR {selectedOrder.totalAmount.toFixed(2)}
             </Text>
 
             <TouchableOpacity 
