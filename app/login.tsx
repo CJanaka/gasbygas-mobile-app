@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import ApiService from './services/apiService';
+import Util from './util/utils';
 
 type RootStackParamList = {
   Login: undefined;
@@ -16,29 +18,52 @@ export default function Login({ navigation }: Props) {
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
 
-  const handleLogin = (): void => {
+  const handleLogin = async (): Promise<void> => {
+
     if (!email || !password) {
       Alert.alert('Error', 'Please enter both username and password');
       return;
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      Alert.alert('Error', 'Please enter a valid username address');
-      return;
+    try {
+
+      const response = await ApiService.post<any>('/login', {
+        username: email,
+        password: password
+      });
+
+      Util.removeData('customerId');
+      Util.removeData('businessId');
+
+      if (response.role === 'customer') {
+        Util.storeData('customerId', response.customerid);
+        console.log('Customer ID saved to localStorage:', response.customerid);
+      } else if (response.role === 'business') {
+        Util.storeData('businessId', response.branch.businessid);
+        console.log('Business ID saved to localStorage:', response.branch.businessid);
+      }
+
+      Util.storeData('username', response.username);
+      Util.storeData('userid', response.userid);
+      Util.storeData('userRole', response.role);
+      Util.storeData('userBranch', response.branch.name);
+
+      Alert.alert('Success', 'Login Successful!', [
+        {
+          text: 'OK',
+          onPress: () => {
+            // Add a small delay for debugging
+            setTimeout(() => {
+              navigation.navigate('Dashboard');
+            }, 500); // Small timeout to simulate the alert dismissal and then navigate
+          }
+        }
+      ]);
+    } catch (error: any) {
+      console.log('Login failed. ', error);
+      Alert.alert('Failure', ''+error.error);
     }
 
-    Alert.alert('Success', 'Login Successful!', [
-      { 
-        text: 'OK', 
-        onPress: () => {
-          // Add a small delay for debugging
-          setTimeout(() => {
-            navigation.navigate('Dashboard');
-          }, 500); // Small timeout to simulate the alert dismissal and then navigate
-        }
-      }
-    ]);
   };
 
   return (

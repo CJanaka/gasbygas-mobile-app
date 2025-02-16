@@ -45,9 +45,11 @@ const MyOrders = () => {
     setOrders(ORDER);
 
     try {
-      const response = await fetch('YOUR_ORDER_LIST_API_ENDPOINT');
+      const response = await fetch('http://10.0.2.2:5001/customer-orders/1');
       const data = await response.json();
       //set after API integration
+      console.error('Failed to fetch orders', data);
+
       setOrders(ORDER);
     } catch (error) {
       console.error('Failed to fetch orders', error);

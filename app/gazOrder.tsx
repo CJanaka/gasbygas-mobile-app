@@ -49,7 +49,7 @@ const GasOrder = () => {
       })),
       totalAmount: calculateTotal()
     };
-
+    console.log('orddata '+orderData)
     try {
       const response = await fetch('YOUR_GAS_ORDER_API_ENDPOINT', {
         method: 'POST',
