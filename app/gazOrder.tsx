@@ -1,31 +1,70 @@
 import React, { useState } from 'react';
-import { View, TextInput, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, TextInput, Text, TouchableOpacity, ScrollView, StyleSheet, Modal, Alert } from 'react-native';
+import ApiService from './services/apiService';
+import Util from './util/utils';
 
 interface GasType {
   id: number;
   name: string;
   price: number;
+  sizeCategory: 'small' | 'medium' | 'large' | 'extraLarge';
 }
 
 const GAS_TYPES: GasType[] = [
-  { id: 1, name: '2.5KG Gas', price: 1500.00 },
-  { id: 2, name: '5KG Gas', price: 2300.00 },
-  { id: 3, name: '12KG Gas', price: 3500.00 }
+  { id: 1, name: '2.5KG Gas', price: 500.00, sizeCategory: 'small' },
+  { id: 2, name: '5KG Gas', price: 1000.00, sizeCategory: 'medium' },
+  { id: 3, name: '12KG Gas', price: 2500.00, sizeCategory: 'large' }
 ];
 
 const GasOrder = () => {
-  const [selectedTypes, setSelectedTypes] = useState<{[key: number]: number}>({});
+  const [selectedTypes, setSelectedTypes] = useState<{ [key: number]: number }>({});
+  const [contact, setContact] = useState('');
+  const [email, setEmail] = useState('');
+  const [showEmptyTankModal, setShowEmptyTankModal] = useState(false);
+  const [emptyTanks, setEmptyTanks] = useState<{ [key: string]: number }>({
+    small: 0,
+    medium: 0,
+    large: 0,
+    extraLarge: 0
+  });
 
   const updateQuantity = (typeId: number, change: number) => {
     setSelectedTypes(prev => {
       const currentQuantity = prev[typeId] || 0;
       const newQuantity = Math.max(0, currentQuantity + change);
-      
-      return newQuantity > 0 
+
+      return newQuantity > 0
         ? { ...prev, [typeId]: newQuantity }
         : Object.fromEntries(
-            Object.entries(prev).filter(([id]) => parseInt(id) !== typeId)
-          );
+          Object.entries(prev).filter(([id]) => parseInt(id) !== typeId)
+        );
+    });
+  };
+
+  // Get max allowed empty tanks for a size category
+  const getMaxEmptyTanks = (sizeCategory: string): number => {
+    return Object.entries(selectedTypes).reduce((total, [typeId, quantity]) => {
+      const gasType = GAS_TYPES.find(g => g.id === parseInt(typeId));
+      if (gasType && gasType.sizeCategory === sizeCategory) {
+        return total + quantity;
+      }
+      return total;
+    }, 0);
+  };
+
+  const updateEmptyTankCount = (sizeCategory: string, change: number) => {
+    const maxAllowed = getMaxEmptyTanks(sizeCategory);
+    setEmptyTanks(prev => {
+      const currentCount = prev[sizeCategory] || 0;
+      const newCount = currentCount + change;
+      
+      // Ensure count stays between 0 and maxAllowed
+      const validatedCount = Math.max(0, Math.min(newCount, maxAllowed));
+      
+      return {
+        ...prev,
+        [sizeCategory]: validatedCount
+      };
     });
   };
 
@@ -41,35 +80,81 @@ const GasOrder = () => {
       alert('Please select at least one gas type');
       return;
     }
+    // Show empty tank modal first
+    setShowEmptyTankModal(true);
+  };
+
+  const handleFinalSubmit = async () => {
+    const userRole = await Util.getData('userRole');
+    const userId = await Util.getData('userid');
+
+    // Convert selected types to API format
+    const orderTanks = {
+      small: 0,
+      medium: 0,
+      large: 0,
+      extraLarge: 0
+    };
+
+    Object.entries(selectedTypes).forEach(([typeId, quantity]) => {
+      const gasType = GAS_TYPES.find(g => g.id === parseInt(typeId));
+      if (gasType) {
+        orderTanks[gasType.sizeCategory] = quantity;
+      }
+    });
 
     const orderData = {
-      orderItems: Object.entries(selectedTypes).map(([typeId, quantity]) => ({
-        gasTypeId: parseInt(typeId),
-        quantity
-      })),
-      totalAmount: calculateTotal()
+      orderQuantities: orderTanks,
+      tankQuantities: emptyTanks,
+      orderDate: new Date().toISOString().split('T')[0],
+      userRole,
+      userId,
+      customerId: userRole === 'customer' ? await Util.getData('customerId') : null,
+      businessId: userRole === 'business' ? await Util.getData('businessId') : null,
+      name: await Util.getData('username'),
+      contact,
+      email
     };
-    console.log('orddata '+orderData)
+
+    // console.log(JSON.stringify(orderData))
     try {
-      const response = await fetch('YOUR_GAS_ORDER_API_ENDPOINT', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(orderData)
-      });
+      const response = await ApiService.post<any>('/create-order', orderData);
 
       const result = await response.json();
-      
-      if (result.success) {
-        alert('Order Submitted Successfully');
-      } else {
-        alert('Order Submission Failed');
-      }
-    } catch (error) {
+
+      console.log(result);
+      Alert.alert('Success', 'Order Submitted Successfully');
+      setShowEmptyTankModal(false);
+
+      // Reset form
+      setSelectedTypes({});
+      setEmptyTanks({ small: 0, medium: 0, large: 0, extraLarge: 0 });
+      setContact('');
+      setEmail('');
+    } catch (error:any) {
       console.error('Order Submission Error', error);
-      alert('Network Error');
+      Alert.alert('Failure', 'Order Submission Error: '+error.error);
     }
+  };
+
+  const handleSkipEmptyTanks = () => {
+    setShowEmptyTankModal(false);
+    handleFinalSubmit();
+  };
+
+  // For rendering selected gas types in the empty tank modal
+  const renderSelectedGasTypes = () => {
+    return Object.entries(selectedTypes).map(([typeId, quantity]) => {
+      const gasType = GAS_TYPES.find(g => g.id === parseInt(typeId));
+      if (!gasType || quantity === 0) return null;
+      
+      return (
+        <View key={`selected-${gasType.id}`} style={styles.selectedGasItem}>
+          <Text style={styles.selectedGasName}>{gasType.name}</Text>
+          <Text style={styles.selectedGasQuantity}>Quantity: {quantity}</Text>
+        </View>
+      );
+    });
   };
 
   return (
@@ -82,21 +167,21 @@ const GasOrder = () => {
             <Text style={styles.gasTypeName}>{gasType.name}</Text>
             <Text style={styles.gasTypePrice}>Price: LKR {gasType.price.toFixed(2)} per unit</Text>
           </View>
-          
+
           <View style={styles.quantityControl}>
-            <TouchableOpacity 
-              style={styles.quantityButton} 
+            <TouchableOpacity
+              style={styles.quantityButton}
               onPress={() => updateQuantity(gasType.id, -1)}
             >
               <Text style={styles.quantityButtonText}>-</Text>
             </TouchableOpacity>
-            
+
             <Text style={styles.quantityText}>
               {selectedTypes[gasType.id] || 0}
             </Text>
-            
-            <TouchableOpacity 
-              style={styles.quantityButton} 
+
+            <TouchableOpacity
+              style={styles.quantityButton}
               onPress={() => updateQuantity(gasType.id, 1)}
             >
               <Text style={styles.quantityButtonText}>+</Text>
@@ -108,15 +193,17 @@ const GasOrder = () => {
       <TextInput
         style={styles.input}
         placeholder="Contact (optional)"
-        // value={formData.name}
-        // onChangeText={(text) => setFormData({ ...formData, name: text })}
+        value={contact}
+        onChangeText={setContact}
       />
+      
       <TextInput
         style={styles.input}
         placeholder="Email (optional)"
-        // value={formData.name}
-        // onChangeText={(text) => setFormData({ ...formData, name: text })}
+        value={email}
+        onChangeText={setEmail}
       />
+      
       <View style={styles.totalContainer}>
         <Text style={styles.totalText}>
           Total Amount: LKR {calculateTotal().toFixed(2)}
@@ -126,6 +213,89 @@ const GasOrder = () => {
       <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
         <Text style={styles.submitButtonText}>Submit Order</Text>
       </TouchableOpacity>
+
+      {/* Empty Tank Modal */}
+      <Modal
+        visible={showEmptyTankModal}
+        animationType="slide"
+        transparent={true}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Empty Cylinder Details</Text>
+            
+            <View style={styles.selectedGasContainer}>
+              <Text style={styles.sectionTitle}>Your Selected Gas Types:</Text>
+              {renderSelectedGasTypes()}
+            </View>
+            
+            <Text style={styles.sectionTitle}>Enter Empty Cylinder Count:</Text>
+            <Text style={styles.helperText}>Note: Empty cylinder count cannot exceed ordered quantity</Text>
+            
+            {Object.entries(emptyTanks).map(([size, count]) => {
+              // Only show size categories for which gas has been ordered
+              const maxAllowed = getMaxEmptyTanks(size);
+              if (maxAllowed === 0) return null;
+              
+              const sizeDisplay = {
+                small: '2.5KG (Small)',
+                medium: '5KG (Medium)',
+                large: '12KG (Large)',
+                extraLarge: 'Extra Large'
+              }[size];
+              
+              return (
+                <View key={`empty-${size}`} style={styles.gasTypeContainer}>
+                  <View style={styles.gasTypeInfo}>
+                    <Text style={styles.gasTypeName}>{sizeDisplay} Empty Cylinders</Text>
+                    <Text style={styles.maxAllowedText}>Maximum: {maxAllowed}</Text>
+                  </View>
+
+                  <View style={styles.quantityControl}>
+                    <TouchableOpacity
+                      style={styles.quantityButton}
+                      onPress={() => updateEmptyTankCount(size, -1)}
+                    >
+                      <Text style={styles.quantityButtonText}>-</Text>
+                    </TouchableOpacity>
+
+                    <Text style={styles.quantityText}>
+                      {count}
+                    </Text>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.quantityButton,
+                        count >= maxAllowed && styles.disabledButton
+                      ]}
+                      onPress={() => updateEmptyTankCount(size, 1)}
+                      disabled={count >= maxAllowed}
+                    >
+                      <Text style={styles.quantityButtonText}>+</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              );
+            })}
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.skipButton]}
+                onPress={handleSkipEmptyTanks}
+              >
+                <Text style={styles.skipButtonText}>Skip</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.confirmButton]}
+                onPress={handleFinalSubmit}
+              >
+                <Text style={styles.confirmButtonText}>Confirm</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 };
@@ -163,6 +333,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666'
   },
+  maxAllowedText: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic'
+  },
+  helperText: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic',
+    marginBottom: 10
+  },
   quantityControl: {
     flexDirection: 'row',
     alignItems: 'center'
@@ -174,6 +355,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 20
+  },
+  disabledButton: {
+    backgroundColor: '#cccccc',
   },
   quantityButtonText: {
     color: 'white',
@@ -203,6 +387,75 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
     fontSize: 16
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  modalContainer: {
+    backgroundColor: 'white',
+    width: '90%',
+    borderRadius: 10,
+    padding: 20,
+    maxHeight: '100%'
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    textAlign: 'center'
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginVertical: 10
+  },
+  selectedGasContainer: {
+    marginBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    paddingBottom: 15
+  },
+  selectedGasItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginVertical: 5,
+    paddingHorizontal: 10
+  },
+  selectedGasName: {
+    fontSize: 16
+  },
+  selectedGasQuantity: {
+    fontSize: 16,
+    fontWeight: '500'
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20
+  },
+  modalButton: {
+    flex: 1,
+    padding: 15,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginHorizontal: 5
+  },
+  skipButton: {
+    backgroundColor: '#f0f0f0',
+  },
+  skipButtonText: {
+    color: '#333',
+    fontWeight: 'bold'
+  },
+  confirmButton: {
+    backgroundColor: 'green',
+  },
+  confirmButtonText: {
+    color: 'white',
+    fontWeight: 'bold'
   }
 });
 

@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, Modal, StyleSheet } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
-
-interface OrderItem {
-  gasTypeId: number;
-  quantity: number;
-}
+import Util from './util/utils';
+import ApiService from './services/apiService';
 
 interface Order {
   id: number;
-  orderItems: OrderItem[];
-  totalAmount: number;
-  createdAt: String;
+  Tank: string[];
+  order: string[];
+  Total: String;
+  Date: String;
+  Status: String;
+  contact: String;
+  customer: String;
 }
 
 interface GasType {
@@ -21,15 +22,9 @@ interface GasType {
 }
 
 const GAS_TYPES: GasType[] = [
-  { id: 1, name: '2.5KG Gas', price: 1500.00 },
-  { id: 2, name: '5KG Gas', price: 2300.00 },
-  { id: 3, name: '12KG Gas', price: 3500.00 }
-];
-
-const ORDER: Order[] = [
-  { id: 1, orderItems: [{gasTypeId: 1, quantity: 5,}], totalAmount: 15.00 , createdAt: '1:27:2025'},
-  { id: 5, orderItems: [{gasTypeId: 2, quantity: 5,}], totalAmount: 20.00 , createdAt: '1/27/2025'},
-  { id: 7, orderItems: [{gasTypeId: 3, quantity: 5,}], totalAmount: 25.00 , createdAt: '1/27/2025'},
+  { id: 1, name: '2.5 Kg', price: 500.00 },
+  { id: 2, name: '5 Kg', price: 1000.00 },
+  { id: 3, name: '12.5 Kg', price: 2500.00 }
 ];
 
 const MyOrders = () => {
@@ -42,15 +37,20 @@ const MyOrders = () => {
   }, []);
 
   const fetchOrders = async () => {
-    setOrders(ORDER);
+    const customerid = await Util.getData('customerId'); // For customers
+    const businessid = await Util.getData('businessId'); // For businesses
+
+    console.log('Customer ID from localStorage:', customerid);
+    console.log('Business ID from localStorage:', businessid);
+
+    const endpoint = businessid ? `/business-orders/${businessid}` : `/customer-orders/${customerid}`;
+    console.log(`Fetching orders for ${businessid ? 'business' : 'customer'} ID: ${businessid || customerid}`);
 
     try {
-      const response = await fetch('http://10.0.2.2:5001/customer-orders/1');
-      const data = await response.json();
-      //set after API integration
-      console.error('Failed to fetch orders', data);
+      const response: Order[] = await ApiService.get(endpoint);
+      console.log('fetch orders', response);
 
-      setOrders(ORDER);
+      setOrders(response);
     } catch (error) {
       console.error('Failed to fetch orders', error);
     }
@@ -64,46 +64,46 @@ const MyOrders = () => {
   const renderOrderItem = ({ item }: { item: Order }) => {
     return (
       <TouchableOpacity
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 16,
-        backgroundColor: 'white',
-        borderRadius: 8,
-        marginBottom: 10,
-        borderWidth: 1,
-        borderColor: '#e5e7eb',
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.2,
-        shadowRadius: 2,
-      }}
-      onPress={() => openOrderDetails(item)}
-    >
-      <View style={{ flex: 1 }}>
-        <Text style={{ 
-          fontSize: 16, 
-          fontWeight: '600',
-          marginBottom: 4 
-        }}>
-          Order - {item.id}
-        </Text>
-        <Text style={{ 
-          color: '#374151',
-          marginBottom: 2 
-        }}>
-          Total Amount: LKR {item.totalAmount.toFixed(2)}
-        </Text>
-        <Text style={{ color: '#6b7280' }}>
-          Date: {item.createdAt}
-        </Text>
-      </View>
-      <ChevronRight 
-        size={24} 
-        color="#9ca3af"
-      />
-    </TouchableOpacity>
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          padding: 16,
+          backgroundColor: 'white',
+          borderRadius: 8,
+          marginBottom: 10,
+          borderWidth: 1,
+          borderColor: '#e5e7eb',
+          elevation: 2,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.2,
+          shadowRadius: 2,
+        }}
+        onPress={() => openOrderDetails(item)}
+      >
+        <View style={{ flex: 1 }}>
+          <Text style={{
+            fontSize: 16,
+            fontWeight: '600',
+            marginBottom: 4
+          }}>
+            Order - {item.id}
+          </Text>
+          <Text style={{
+            color: '#374151',
+            marginBottom: 2
+          }}>
+            Total Amount: LKR {item.Total}
+          </Text>
+          <Text style={{ color: '#6b7280' }}>
+            Date: {item.Date}
+          </Text>
+        </View>
+        <ChevronRight
+          size={24}
+          color="#9ca3af"
+        />
+      </TouchableOpacity>
     );
   };
 
@@ -121,25 +121,35 @@ const MyOrders = () => {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Order Details</Text>
             <Text>Order ID: - {selectedOrder.id}</Text>
-            <Text>Date: {selectedOrder.createdAt}</Text>
-            
+            <Text>Date: {selectedOrder.Date}</Text>
+
             <Text style={styles.detailsSubtitle}>Order Items:</Text>
-            {selectedOrder.orderItems.map((item) => {
-              const gasType = GAS_TYPES.find(g => g.id === item.gasTypeId);
-              return (
-                <View key={item.gasTypeId} style={styles.orderItemDetails}>
-                  <Text>{gasType?.name || 'Unknown Gas Type'}</Text>
-                  <Text>Quantity: {item.quantity}</Text>
-                  <Text>Price: LKR {gasType ? (gasType.price * item.quantity).toFixed(2) : '0.00'}</Text>
-                </View>
-              );
+            {selectedOrder.Tank.map((item, index) => {
+              const [weight, quantity] = item.split(': '); // Split into weight & quantity
+              console.log('weight ' + weight);
+
+              const gasType = GAS_TYPES.find(g => g.name.trim().toLowerCase() === weight.trim().toLowerCase());
+              console.log('gasType ' + gasType);
+
+              // Only render if quantity is greater than 0
+              if (parseInt(quantity.trim()) > 0) {
+                return (
+                  <View key={index} style={styles.orderItemDetails}>
+                    <Text>{weight} Gas</Text>
+                    <Text>Quantity: {quantity}</Text>
+                    <Text>Price: LKR {gasType ? gasType.price : 'Rs 0.00'}</Text>
+                  </View>
+                );
+              }
+              return null; // Return null if quantity is not greater than 0
             })}
 
+
             <Text style={styles.totalAmountText}>
-              Total Amount: LKR {selectedOrder.totalAmount.toFixed(2)}
+              Total Amount: LKR {selectedOrder.Total}
             </Text>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.closeButton}
               onPress={() => setIsDetailModalVisible(false)}
             >

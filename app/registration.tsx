@@ -6,10 +6,14 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  Platform
+  Platform,
+  Alert
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import ApiService from './services/apiService';
+import Util from './util/utils';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 // Outlet Data
 const OUTLETS = [
@@ -27,14 +31,23 @@ type FormData = {
   email: string;
   contactNumber: string;
   address: string;
-  outlet: number;
+  outlet: string;
   dob: Date;
   gender: string;
   businessRegistrationNumber?: string;  // Make this optional
 };
 
-const Registration = () => {
-  const [customerType, setCustomerType] = useState<'general' | 'business'>('general');
+type RootStackParamList = {
+  Login: undefined;
+  Home: undefined;
+  Registration: undefined;
+  Dashboard: undefined;
+};
+
+type Props = NativeStackScreenProps<RootStackParamList, 'Registration'>;
+
+export default function Registration ({ navigation }: Props) {
+  const [type, setType] = useState<'customer' | 'business'>('customer');
   const [formData, setFormData] = useState<FormData>({
     username: '',
     password: '',
@@ -43,7 +56,7 @@ const Registration = () => {
     email: '',
     contactNumber: '',
     address: '',
-    outlet: OUTLETS[0].id,
+    outlet: OUTLETS[0].name,
     dob: new Date(),
     gender: '',
   });
@@ -78,7 +91,7 @@ const Registration = () => {
       newErrors.contactNumber = 'Valid contact number is required.';
       isValid = false;
     }
-    if (customerType === 'business' && !formData.businessRegistrationNumber) {
+    if (type === 'business' && !formData.businessRegistrationNumber) {
       newErrors.businessRegistrationNumber = 'Business registration number is required.';
       isValid = false;
     }
@@ -100,37 +113,38 @@ const Registration = () => {
         const registrationData = {
           username: formData.username,
           password: formData.password,
-          name: formData.name,
+          full_name: formData.name,
           email: formData.email,
-          contactNumber: formData.contactNumber,
+          mobile_number: formData.contactNumber,
           address: formData.address,
           outlet: formData.outlet,
-          dob: formData.dob.toISOString(),  // Convert Date to string (ISO format)
+          date_of_birth: formData.dob.toISOString(),  // Convert Date to string (ISO format)
           gender: formData.gender,
-          customerType,
-          ...(customerType === 'business' ? { businessRegistrationNumber: formData.businessRegistrationNumber } : {})
+          type,
+          ...(type === 'business' ? { business_registration_number: formData.businessRegistrationNumber } : {})
         };
 
-        // API Call (replace with your actual registration API endpoint)
-        const response = await fetch('YOUR_REGISTRATION_API_ENDPOINT', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(registrationData)
-        });
+        const response = await ApiService.post<any>('/register', 
+          registrationData
+        );
 
-        const result = await response.json();
+        console.log('response ' + response)
 
-        if (result.success) {
-          // Handle successful registration
-          console.log('Registration Successful');
-        } else {
-          // Handle registration failure
-          console.error('Registration Failed', result);
-        }
-      } catch (error) {
+        Alert.alert('Success', 'Registration Successful!', [
+          {
+            text: 'OK',
+            onPress: () => {
+              // Add a small delay for debugging
+              setTimeout(() => {
+                navigation.navigate('Login');
+              }, 500); // Small timeout to simulate the alert dismissal and then navigate
+            }
+          }
+        ]);
+
+      } catch (error : any) {
         console.error('Registration Error', error);
+        Alert.alert('Failure', ''+error.error);
       }
     }
   };
@@ -143,8 +157,8 @@ const Registration = () => {
       <View style={styles.pickerContainer}>
         <Text>Customer Type</Text>
         <Picker
-          selectedValue={customerType}
-          onValueChange={(value) => setCustomerType(value)}
+          selectedValue={type}
+          onValueChange={(value) => setType(value)}
         >
           <Picker.Item label="General Customer" value="general" />
           <Picker.Item label="Business Customer" value="business" />
@@ -178,7 +192,7 @@ const Registration = () => {
       />
       {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
 
-      {customerType === 'business' && (
+      {type === 'business' && (
         <>
           <TextInput
             style={styles.input}
@@ -235,7 +249,7 @@ const Registration = () => {
           onValueChange={(value) => setFormData({ ...formData, outlet: value })}
         >
           {OUTLETS.map((outlet) => (
-            <Picker.Item key={outlet.id} label={outlet.name} value={outlet.id} />
+            <Picker.Item key={outlet.id} label={outlet.name} value={outlet.name} />
           ))}
         </Picker>
       </View>
@@ -288,4 +302,4 @@ const styles = StyleSheet.create({
   submitButtonText: { color: 'white', fontWeight: 'bold' },
 });
 
-export default Registration;
+// export default Registration;

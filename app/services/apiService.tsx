@@ -21,7 +21,7 @@ class ApiService {
       }
       return response.json();
     } catch (error: any) {
-      console.error(`GET request failed: ${error.message}`);
+      console.log(`GET request failed: ${error.message}`);
       throw error;
     }
   }
@@ -54,7 +54,7 @@ class ApiService {
   
       return responseData;
     } catch (error: any) {
-      console.error(`POST request failed: ${error}`);
+      console.log(`POST request failed: ${error}`);
       return Promise.reject({ error });
     }
   }

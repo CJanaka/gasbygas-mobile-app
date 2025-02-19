@@ -6,9 +6,9 @@ class Utill {
    * @param key - The key under which data will be stored.
    * @param value - The value to store.
    */
-  static async storeData(key: string, value: any): Promise<void> {
+  static async storeData(key: string, value: string | number | boolean): Promise<void> {
     try {
-      await AsyncStorage.setItem(key, JSON.stringify(value));
+      await AsyncStorage.setItem(key, String(value));
       console.log(`Data stored successfully: ${key}`);
     } catch (error) {
       console.error('Error saving data:', error);
@@ -20,15 +20,16 @@ class Utill {
    * @param key - The key of the data to retrieve.
    * @returns The retrieved value or null if not found.
    */
-  static async getData<T>(key: string): Promise<T | null> {
+  static async getData(key: string): Promise<string | null> {
     try {
       const data = await AsyncStorage.getItem(key);
-      return data ? JSON.parse(data) : null;
+      console.log(`Retrieving data: ${key} -`, data); // Use console.log for normal logs
+      return data; // No need for `data ? data : null`
     } catch (error) {
       console.error('Error retrieving data:', error);
       return null;
     }
-  }
+  }  
 
   /**
    * Removes data from AsyncStorage.
