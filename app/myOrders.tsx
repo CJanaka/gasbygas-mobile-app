@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Modal, StyleSheet } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, Modal, StyleSheet, SafeAreaView } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
 import Util from './util/utils';
 import ApiService from './services/apiService';
@@ -24,7 +24,8 @@ interface GasType {
 const GAS_TYPES: GasType[] = [
   { id: 1, name: '2.5 Kg', price: 500.00 },
   { id: 2, name: '5 Kg', price: 1000.00 },
-  { id: 3, name: '12.5 Kg', price: 2500.00 }
+  { id: 3, name: '12.5 Kg', price: 2500.00 },
+  { id: 4, name: '37.5 Kg', price: 7500.00 }
 ];
 
 const MyOrders = () => {
@@ -124,7 +125,7 @@ const MyOrders = () => {
             <Text>Date: {selectedOrder.Date}</Text>
 
             <Text style={styles.detailsSubtitle}>Order Items:</Text>
-            {selectedOrder.Tank.map((item, index) => {
+            {selectedOrder.order.map((item, index) => {
               const [weight, quantity] = item.split(': '); // Split into weight & quantity
               console.log('weight ' + weight);
 
@@ -135,18 +136,39 @@ const MyOrders = () => {
               if (parseInt(quantity.trim()) > 0) {
                 return (
                   <View key={index} style={styles.orderItemDetails}>
-                    <Text>{weight} Gas</Text>
-                    <Text>Quantity: {quantity}</Text>
-                    <Text>Price: LKR {gasType ? gasType.price : 'Rs 0.00'}</Text>
+                     <View style={styles.orderRow}>
+                    <Text style={styles.orderText}>Quantity: {quantity}</Text>
+                    <Text style={styles.orderText}>Price: LKR {gasType ? gasType.price : 'Rs 0.00'}</Text>
+                    <Text style={styles.orderWei}>{weight} Gas</Text>
+                    </View>
                   </View>
                 );
               }
               return null; // Return null if quantity is not greater than 0
             })}
 
+            {selectedOrder.Tank.some(item => parseInt(item.split(': ')[1].trim()) > 0) && (
+              <Text style={styles.detailsSubtitle}>Empty Gas:</Text>
+            )}
+
+            {selectedOrder.Tank.map((item, index) => {
+              const [weight, quantity] = item.split(': '); // Split into weight & quantity
+              const gasType = GAS_TYPES.find(g => g.name.trim().toLowerCase() === weight.trim().toLowerCase());
+
+              // Only render if quantity is greater than 0
+              if (parseInt(quantity.trim()) > 0) {
+                return (
+                  <View key={index} style={styles.orderItemDetails}>
+                    <Text>{weight} Gas</Text>
+                    <Text>Quantity: {quantity}</Text>
+                  </View>
+                );
+              }
+              return null;
+            })}
 
             <Text style={styles.totalAmountText}>
-              Total Amount: LKR {selectedOrder.Total}
+              Total Amount: LKR/ {selectedOrder.Total}
             </Text>
 
             <TouchableOpacity
@@ -162,7 +184,7 @@ const MyOrders = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <Text style={styles.title}>My Orders</Text>
       <FlatList
         data={orders}
@@ -173,14 +195,14 @@ const MyOrders = () => {
         }
       />
       {renderOrderDetails()}
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20
+    padding: 16
   },
   title: {
     fontSize: 24,
@@ -240,6 +262,25 @@ const styles = StyleSheet.create({
   closeButtonText: {
     color: 'white',
     textAlign: 'center'
+  },
+  orderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 5,
+  },
+  orderText: {
+    fontSize: 16,
+    fontWeight: '500',
+    alignContent: 'flex-start',
+    paddingRight: 10
+  },
+  orderWei: {
+    fontSize: 16,
+    fontWeight: '500',
+    // marginRight: 20,
+    marginStart: 5,
+    alignContent: 'flex-start',
   },
   emptyListText: {
     textAlign: 'center',

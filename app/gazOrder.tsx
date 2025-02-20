@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, TextInput, Text, TouchableOpacity, ScrollView, StyleSheet, Modal, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, TextInput, Text, TouchableOpacity, ScrollView, StyleSheet, Modal, Alert, SafeAreaView } from 'react-native';
 import ApiService from './services/apiService';
 import Util from './util/utils';
 
@@ -8,12 +8,14 @@ interface GasType {
   name: string;
   price: number;
   sizeCategory: 'small' | 'medium' | 'large' | 'extraLarge';
+  userType: 'all' | 'business'; // Add user type restriction
 }
 
 const GAS_TYPES: GasType[] = [
-  { id: 1, name: '2.5KG Gas', price: 500.00, sizeCategory: 'small' },
-  { id: 2, name: '5KG Gas', price: 1000.00, sizeCategory: 'medium' },
-  { id: 3, name: '12KG Gas', price: 2500.00, sizeCategory: 'large' }
+  { id: 1, name: '2.5KG Gas', price: 500.00, sizeCategory: 'small', userType: 'all' },
+  { id: 2, name: '5KG Gas', price: 1000.00, sizeCategory: 'medium', userType: 'all' },
+  { id: 3, name: '12.5KG Gas', price: 2500.00, sizeCategory: 'large', userType: 'all' },
+  { id: 4, name: '37.5KG Gas', price: 7500.00, sizeCategory: 'extraLarge', userType: 'business' }
 ];
 
 const GasOrder = () => {
@@ -21,12 +23,26 @@ const GasOrder = () => {
   const [contact, setContact] = useState('');
   const [email, setEmail] = useState('');
   const [showEmptyTankModal, setShowEmptyTankModal] = useState(false);
+  const [userRole, setUserRole] = useState<string>('');
   const [emptyTanks, setEmptyTanks] = useState<{ [key: string]: number }>({
     small: 0,
     medium: 0,
     large: 0,
     extraLarge: 0
   });
+
+  // Fetch user role on component mount
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      try {
+        const role = await Util.getData('userRole');
+        setUserRole(String(role));
+      } catch (error) {
+        console.error('Error fetching user role:', error);
+      }
+    };
+    fetchUserRole();
+  }, []);
 
   const updateQuantity = (typeId: number, change: number) => {
     setSelectedTypes(prev => {
@@ -57,10 +73,10 @@ const GasOrder = () => {
     setEmptyTanks(prev => {
       const currentCount = prev[sizeCategory] || 0;
       const newCount = currentCount + change;
-      
+
       // Ensure count stays between 0 and maxAllowed
       const validatedCount = Math.max(0, Math.min(newCount, maxAllowed));
-      
+
       return {
         ...prev,
         [sizeCategory]: validatedCount
@@ -85,7 +101,6 @@ const GasOrder = () => {
   };
 
   const handleFinalSubmit = async () => {
-    const userRole = await Util.getData('userRole');
     const userId = await Util.getData('userid');
 
     // Convert selected types to API format
@@ -116,13 +131,10 @@ const GasOrder = () => {
       email
     };
 
-    // console.log(JSON.stringify(orderData))
     try {
       const response = await ApiService.post<any>('/create-order', orderData);
 
-      const result = await response.json();
-
-      console.log(result);
+      console.log(response);
       Alert.alert('Success', 'Order Submitted Successfully');
       setShowEmptyTankModal(false);
 
@@ -131,9 +143,9 @@ const GasOrder = () => {
       setEmptyTanks({ small: 0, medium: 0, large: 0, extraLarge: 0 });
       setContact('');
       setEmail('');
-    } catch (error:any) {
+    } catch (error: any) {
       console.error('Order Submission Error', error);
-      Alert.alert('Failure', 'Order Submission Error: '+error.error);
+      Alert.alert('Failure', 'Order Submission Error: ' + error.error);
     }
   };
 
@@ -147,7 +159,7 @@ const GasOrder = () => {
     return Object.entries(selectedTypes).map(([typeId, quantity]) => {
       const gasType = GAS_TYPES.find(g => g.id === parseInt(typeId));
       if (!gasType || quantity === 0) return null;
-      
+
       return (
         <View key={`selected-${gasType.id}`} style={styles.selectedGasItem}>
           <Text style={styles.selectedGasName}>{gasType.name}</Text>
@@ -157,11 +169,18 @@ const GasOrder = () => {
     });
   };
 
+  // Filter gas types based on user role
+  const getAvailableGasTypes = () => {
+    return GAS_TYPES.filter(gasType => 
+      gasType.userType === 'all' || gasType.userType === userRole
+    );
+  };
+
   return (
-    <ScrollView style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <Text style={styles.title}>Gas Order Selection</Text>
 
-      {GAS_TYPES.map((gasType) => (
+      {getAvailableGasTypes().map((gasType) => (
         <View key={gasType.id} style={styles.gasTypeContainer}>
           <View style={styles.gasTypeInfo}>
             <Text style={styles.gasTypeName}>{gasType.name}</Text>
@@ -196,14 +215,14 @@ const GasOrder = () => {
         value={contact}
         onChangeText={setContact}
       />
-      
+
       <TextInput
         style={styles.input}
         placeholder="Email (optional)"
         value={email}
         onChangeText={setEmail}
       />
-      
+
       <View style={styles.totalContainer}>
         <Text style={styles.totalText}>
           Total Amount: LKR {calculateTotal().toFixed(2)}
@@ -221,29 +240,41 @@ const GasOrder = () => {
         transparent={true}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
+          <ScrollView
+            style={{ maxHeight: '80%', width: '90%', borderRadius: 10 }}
+            contentContainerStyle={{ backgroundColor: 'white', padding: 20, borderRadius: 10 }}
+          >
+            {/* Add this close/cancel button at the top right */}
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => setShowEmptyTankModal(false)}
+            >
+              <Text style={styles.cancelButtonText}>✕</Text>
+            </TouchableOpacity>
+
             <Text style={styles.modalTitle}>Empty Cylinder Details</Text>
-            
+
             <View style={styles.selectedGasContainer}>
               <Text style={styles.sectionTitle}>Your Selected Gas Types:</Text>
               {renderSelectedGasTypes()}
             </View>
-            
+
             <Text style={styles.sectionTitle}>Enter Empty Cylinder Count:</Text>
             <Text style={styles.helperText}>Note: Empty cylinder count cannot exceed ordered quantity</Text>
-            
+
+
             {Object.entries(emptyTanks).map(([size, count]) => {
               // Only show size categories for which gas has been ordered
               const maxAllowed = getMaxEmptyTanks(size);
               if (maxAllowed === 0) return null;
-              
+
               const sizeDisplay = {
                 small: '2.5KG (Small)',
                 medium: '5KG (Medium)',
-                large: '12KG (Large)',
-                extraLarge: 'Extra Large'
+                large: '12.5KG (Large)',
+                extraLarge: '37.5KG (Extra Large)'
               }[size];
-              
+
               return (
                 <View key={`empty-${size}`} style={styles.gasTypeContainer}>
                   <View style={styles.gasTypeInfo}>
@@ -279,24 +310,24 @@ const GasOrder = () => {
             })}
 
             <View style={styles.modalButtons}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.modalButton, styles.skipButton]}
                 onPress={handleSkipEmptyTanks}
               >
                 <Text style={styles.skipButtonText}>Skip</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={[styles.modalButton, styles.confirmButton]}
                 onPress={handleFinalSubmit}
               >
                 <Text style={styles.confirmButtonText}>Confirm</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </ScrollView>
         </View>
       </Modal>
-    </ScrollView>
+    </SafeAreaView>
   );
 };
 
@@ -456,6 +487,35 @@ const styles = StyleSheet.create({
   confirmButtonText: {
     color: 'white',
     fontWeight: 'bold'
+  },
+  cancelButton: {
+    position: 'absolute',
+    right: 10,
+    top: 10,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#ff6b6b',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  noticeContainer: {
+    backgroundColor: '#fff3cd',
+    borderColor: '#ffeeba',
+    borderWidth: 1,
+    borderRadius: 5,
+    padding: 12,
+    marginBottom: 15,
+  },
+  noticeText: {
+    color: '#856404',
+    fontSize: 14,
   }
 });
 
